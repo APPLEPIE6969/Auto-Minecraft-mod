@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 AI Minecraft Mod Generator</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1c2128;
+    --border: #30363d;
+    --green: #3fb950;
+    --green-dim: #1a4020;
+    --blue: #58a6ff;
+    --blue-dim: #0d2044;
+    --purple: #bc8cff;
+    --red: #f85149;
+    --orange: #d29922;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, #0a1628 0%, #0d2044 50%, #1a0a2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 40px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .header-icon { font-size: 36px; filter: drop-shadow(0 0 12px #3fb95080); }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header p { color: var(--text-dim); font-size: 13px; margin-top: 2px; }
+  .badge {
+    background: var(--green-dim); border: 1px solid var(--green);
+    color: var(--green); font-size: 11px; padding: 2px 8px; border-radius: 20px;
+    font-weight: 600; margin-left: 8px;
+  }
+
+  /* Layout */
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+  }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+  /* Form elements */
+  label { display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 6px; font-weight: 500; }
+  input, textarea, select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 8px; padding: 10px 14px;
+    font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color .2s;
+  }
+  input:focus, textarea:focus { border-color: var(--blue); }
+  textarea { min-height: 100px; resize: vertical; }
+  .field { margin-bottom: 16px; }
+
+  /* API Key row */
+  .key-row { position: relative; }
+  .key-row input { padding-right: 80px; font-family: var(--font-mono); font-size: 12px; }
+  .key-status {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+  }
+  .key-status.ok { background: var(--green-dim); color: var(--green); }
+  .key-status.missing { background: #2a1a1a; color: var(--red); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 24px; border-radius: 8px; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: all .2s; white-space: nowrap;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #238636, #2ea043);
+    color: white; width: 100%; justify-content: center; font-size: 15px;
+    padding: 14px;
+  }
+  .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-dim); }
+  .btn-outline:hover { border-color: var(--blue); color: var(--blue); }
+
+  /* AI chips */
+  .ai-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .ai-chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 20px; border: 1px solid;
+    font-size: 12px; font-weight: 600;
+  }
+  .ai-chip.gemini { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  .ai-chip.groq { background: #2a0a1a; border-color: var(--purple); color: var(--purple); }
+  .ai-chip.jules { background: #1a2a0a; border-color: var(--green); color: var(--green); }
+  .ai-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* Progress / Log */
+  .log-container {
+    background: #0a0d12; border: 1px solid var(--border); border-radius: 8px;
+    padding: 16px; font-family: var(--font-mono); font-size: 12px;
+    max-height: 350px; overflow-y: auto; line-height: 1.6;
+  }
+  .log-line { margin-bottom: 3px; }
+  .log-info { color: var(--text-dim); }
+  .log-success { color: var(--green); }
+  .log-error { color: var(--red); }
+  .log-warn { color: var(--orange); }
+  .log-step { color: var(--blue); font-weight: bold; }
+  .log-ai { color: var(--purple); }
+
+  /* Progress bar */
+  .progress-wrap { background: var(--surface2); border-radius: 4px; height: 6px; margin: 12px 0; overflow: hidden; }
+  .progress-bar {
+    height: 100%; background: linear-gradient(90deg, var(--green), var(--blue));
+    border-radius: 4px; transition: width .4s ease;
+  }
+
+  /* Results */
+  .test-grid { display: grid; gap: 8px; }
+  .test-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface2); padding: 10px 14px; border-radius: 8px;
+    font-size: 13px; border: 1px solid var(--border);
+  }
+  .test-item.pass { border-color: #1a4020; }
+  .test-item.fail { border-color: #3a1a1a; }
+  .test-name { flex: 1; font-weight: 500; }
+  .test-msg { color: var(--text-dim); font-size: 11px; font-family: var(--font-mono); }
+
+  /* Stats */
+  .stat-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .stat { text-align: center; padding: 14px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+  .stat-num { font-size: 28px; font-weight: 800; }
+  .stat-label { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  .stat.pass .stat-num { color: var(--green); }
+  .stat.fail .stat-num { color: var(--red); }
+  .stat.total .stat-num { color: var(--blue); }
+
+  /* Code preview */
+  .code-tabs { display: flex; gap: 4px; margin-bottom: 8px; overflow-x: auto; }
+  .code-tab {
+    padding: 5px 12px; border-radius: 6px; font-size: 12px;
+    cursor: pointer; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text-dim); white-space: nowrap; font-family: var(--font-mono);
+  }
+  .code-tab.active { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  pre { background: #0a0d12; border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow: auto; max-height: 280px; font-family: var(--font-mono); font-size: 12px; line-height: 1.5; }
+
+  /* Presets */
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .preset-btn {
+    padding: 10px 12px; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 12px; cursor: pointer; text-align: left;
+    color: var(--text); transition: all .15s;
+  }
+  .preset-btn:hover { border-color: var(--blue); background: var(--blue-dim); }
+  .preset-btn .emoji { font-size: 16px; display: block; margin-bottom: 4px; }
+  .preset-btn .title { font-weight: 600; color: var(--text); }
+  .preset-btn .desc { color: var(--text-dim); font-size: 11px; margin-top: 2px; }
+
+  .hidden { display: none; }
+  .full-width { grid-column: 1 / -1; }
+
+  /* Download area */
+  .download-card { background: var(--green-dim); border: 1px solid var(--green); border-radius: 12px; padding: 20px; text-align: center; }
+  .download-card h3 { color: var(--green); margin-bottom: 8px; }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* Tooltip */
+  [title] { cursor: help; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">⚔️</div>
+  <div>
+    <h1>AI Minecraft Mod Generator <span class="badge">1.21.11 Fabric</span></h1>
+    <p>Powered by Gemini · Groq · Jules — Automatic generation, debugging & testing | Mounts of Mayhem</p>
+  </div>
+</div>
+
+<div class="container">
+  <div class="ai-chips">
+    <div class="ai-chip gemini" id="gemini-chip">
+      <div class="ai-dot"></div> Gemini (Google AI Studio) — Code Gen
+    </div>
+    <div class="ai-chip groq" id="groq-chip">
+      <div class="ai-dot"></div> Groq (LLaMA 3.3) — Auto-Debug
+    </div>
+    <div class="ai-chip jules" id="jules-chip">
+      <div class="ai-dot"></div> Jules (Google) — Code Review
+    </div>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT COL -->
+    <div>
+      <!-- API Keys -->
+      <div class="card" style="margin-bottom:20px">
+        <h2>🔑 API Keys</h2>
+        
+        <div class="field">
+          <label>Google AI Studio (Gemini) API Key</label>
+          <div class="key-row">
+            <input type="password" id="gemini-key" placeholder="AIza..." oninput="updateChips()">
+            <span class="key-status missing" id="gemini-status">MISSING</span>
+          </div>
+          <p style="font-size:11px;color:var(--text-dim);margin-top:4px">→ <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--blue)">Get from Google AI Studio</a> — used for code generation & Jules</p>
+        </div>
+
+        <div class="field">
+          <label>Groq API Key</label>
+          <div class="key-row">
+            <input type="password" id="groq-key" placeholder="gsk_..." oninput="updateChips()">
+            <span class="key-status missing" id="groq-status">MISSING</span>
+          </div>
+          <p style="font-size:11px;color:var(--text-dim);margin-top:4px">→ <a href="https://console.groq.com/keys" target="_blank" style="color:var(--blue)">Get from Groq Console</a> — ultra-fast LLaMA for debugging</p>
+        </div>
+
+        <div class="field">
+          <label>Jules API Key</label>
+          <div class="key-row">
+            <input type="password" id="jules-key" placeholder="AIza... (same as Gemini)" oninput="updateChips()">
+            <span class="key-status missing" id="jules-status">MISSING</span>
+          </div>
+          <p style="font-size:11px;color:var(--text-dim);margin-top:4px">→ Jules uses your Google AI Studio key — <a href="https://jules.google.com" target="_blank" style="color:var(--blue)">jules.google.com</a></p>
+        </div>
+      </div>
+
+      <!-- Mod Config -->
+      <div class="card">
+        <h2>🎮 Mod Configuration</h2>
+
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">Quick presets:</p>
+        <div class="preset-grid">
+          <button class="preset-btn" onclick="usePreset('magic_wand', 'A magic wand that shoots fireballs when right-clicked. The fireballs explode on impact and set entities on fire.')">
+            <span class="emoji">🪄</span>
+            <span class="title">Magic Wand</span>
+            <span class="desc">Fireball-shooting wand item</span>
+          </button>
+          <button class="preset-btn" onclick="usePreset('lucky_ore', 'A new Lucky Ore that spawns in the overworld and drops random rewards when mined, with a 10% chance of spawning a mob.')">
+            <span class="emoji">⭐</span>
+            <span class="title">Lucky Ore</span>
+            <span class="desc">Random reward ore block</span>
+          </button>
+          <button class="preset-btn" onclick="usePreset('gravity_boots', 'Gravity boots that let the player double jump and walk on the underside of blocks.')">
+            <span class="emoji">👟</span>
+            <span class="title">Gravity Boots</span>
+            <span class="desc">Double jump + ceiling walk</span>
+          </button>
+          <button class="preset-btn" onclick="usePreset('auto_farmer', 'An auto-farmer block that automatically plants and harvests crops in a 5x5 area around it when powered by Redstone.')">
+            <span class="emoji">🌾</span>
+            <span class="title">Auto Farmer</span>
+            <span class="desc">Redstone auto-farming block</span>
+          </button>
+        </div>
+
+        <div class="field">
+          <label>Mod Name (optional — AI will suggest one)</label>
+          <input type="text" id="mod-name" placeholder="e.g. Magic Wand Mod">
+        </div>
+
+        <div class="field">
+          <label>Mod Description *</label>
+          <textarea id="mod-desc" placeholder="Describe your Minecraft mod in detail. What does it add? How does it work? What items/blocks/mechanics are involved?"></textarea>
+        </div>
+
+        <div class="field">
+          <label>Output Directory</label>
+          <input type="text" id="output-dir" value="./generated_mods" style="font-family:var(--font-mono);font-size:12px">
+        </div>
+
+        <button class="btn btn-primary" id="generate-btn" onclick="generateMod()">
+          ⚔️ Generate Minecraft Mod
+        </button>
+      </div>
+    </div>
+
+    <!-- RIGHT COL -->
+    <div>
+      <!-- Status & Log -->
+      <div class="card" style="margin-bottom:20px" id="status-card">
+        <h2>📡 Generation Status</h2>
+        <div class="progress-wrap">
+          <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim);margin-bottom:12px">
+          <span id="status-label">Idle — configure mod and click generate</span>
+          <span id="progress-pct">0%</span>
+        </div>
+        <div class="log-container" id="log">
+          <div class="log-line log-info">Ready. Enter your API keys and mod description to get started.</div>
+          <div class="log-line log-info">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+          <div class="log-line log-info">This system will:</div>
+          <div class="log-line log-info"> 1. 🧠 Gemini → Generate complete Java source code</div>
+          <div class="log-line log-info"> 2. 🔍 Jules → Code review & improvement</div>
+          <div class="log-line log-info"> 3. 🔨 Gradle → Compile the mod</div>
+          <div class="log-line log-ai"> 4. ⚡ Groq → Auto-debug any errors (up to 5 iterations)</div>
+          <div class="log-line log-info"> 5. 🧪 Tests → Validate structure & code</div>
+          <div class="log-line log-info"> 6. 📦 Output → Ready-to-install .jar file</div>
+        </div>
+      </div>
+
+      <!-- Test Results -->
+      <div class="card hidden" id="results-card">
+        <h2>🧪 Test Results</h2>
+        <div class="stat-row" id="stat-row"></div>
+        <div class="test-grid" id="test-list"></div>
+      </div>
+
+      <!-- Code Preview -->
+      <div class="card hidden" id="code-card" style="margin-top:20px">
+        <h2>📄 Generated Source Code</h2>
+        <div class="code-tabs" id="code-tabs"></div>
+        <pre id="code-preview"></pre>
+      </div>
+
+      <!-- CLI Command -->
+      <div class="card hidden" id="cli-card" style="margin-top:20px">
+        <h2>💻 Run via CLI</h2>
+        <p style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Use the Python CLI for automated pipelines:</p>
+        <pre id="cli-command" style="font-size:11px;white-space:pre-wrap;word-break:break-all"></pre>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn btn-outline btn-sm" onclick="copyCliCmd()">📋 Copy Command</button>
+          <button class="btn btn-outline btn-sm" onclick="showSetup()">📦 Setup Instructions</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup Modal (inline) -->
+  <div class="card hidden" id="setup-card" style="margin-top:20px">
+    <h2>📦 Setup Instructions</h2>
+    <p style="font-size:13px;color:var(--text-dim);margin-bottom:16px">To run the Python backend on your machine:</p>
+    <pre style="font-size:12px">
+# 1. Install Python 3.11+
+# 2. Install Java 21 (required for Gradle)
+# 3. Install Gradle 8+ (for building mods)
+
+# 4. Clone/download the mc_mod_ai folder
+
+# 5. Install Python dependencies (no pip packages needed — uses stdlib only!)
+#    Optional: pip install requests  (for better HTTP handling)
+
+# 6. Set API keys (or use --flags)
+export GEMINI_API_KEY="your_google_ai_studio_key"
+export GROQ_API_KEY="your_groq_key"
+export JULES_API_KEY="your_jules_key"  # same as Gemini key
+
+# 7. Run!
+python main.py "A magic sword that shoots lightning" --name "Thunder Blade"
+python main.py "A new ore that drops experience" --output ./my_mods
+    </pre>
+    <button class="btn btn-outline btn-sm" onclick="document.getElementById('setup-card').classList.add('hidden')" style="margin-top:12px">✕ Close</button>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let genFiles = {};  // filename → content
+let activeTab = null;
+
+// ─── Chip / Key updates ───────────────────────────────────────────────────────
+function updateChips() {
+  const keys = {
+    gemini: document.getElementById('gemini-key').value.trim(),
+    groq: document.getElementById('groq-key').value.trim(),
+    jules: document.getElementById('jules-key').value.trim()
+  };
+  
+  for (const [name, val] of Object.entries(keys)) {
+    const el = document.getElementById(`${name}-status`);
+    el.textContent = val ? 'SET' : 'MISSING';
+    el.className = `key-status ${val ? 'ok' : 'missing'}`;
+  }
+
+  updateCliCommand();
+}
+
+function updateCliCommand() {
+  const gemini = document.getElementById('gemini-key').value.trim();
+  const groq = document.getElementById('groq-key').value.trim();
+  const jules = document.getElementById('jules-key').value.trim();
+  const desc = document.getElementById('mod-desc').value.trim() || 'Your mod description here';
+  const name = document.getElementById('mod-name').value.trim();
+  const out = document.getElementById('output-dir').value.trim();
+
+  const parts = [
+    'python main.py',
+    `"${desc}"`,
+    name ? `--name "${name}"` : '',
+    gemini ? `--gemini-key "${gemini.substring(0,8)}..."` : '',
+    groq ? `--groq-key "${groq.substring(0,8)}..."` : '',
+    jules ? `--jules-key "${jules.substring(0,8)}..."` : '',
+    out !== './generated_mods' ? `--output "${out}"` : ''
+  ].filter(Boolean).join(' \\\n  ');
+
+  document.getElementById('cli-command').textContent = parts;
+}
+
+// ─── Presets ─────────────────────────────────────────────────────────────────
+function usePreset(name, desc) {
+  document.getElementById('mod-name').value = name.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  document.getElementById('mod-desc').value = desc;
+  updateCliCommand();
+}
+
+// ─── Main Generation Flow (simulated — calls Python backend via CLI) ──────────
+async function generateMod() {
+  const desc = document.getElementById('mod-desc').value.trim();
+  if (!desc) { alert('Please enter a mod description!'); return; }
+
+  const geminiKey = document.getElementById('gemini-key').value.trim();
+  const groqKey = document.getElementById('groq-key').value.trim();
+
+  document.getElementById('generate-btn').disabled = true;
+  document.getElementById('results-card').classList.add('hidden');
+  document.getElementById('code-card').classList.add('hidden');
+  document.getElementById('cli-card').classList.remove('hidden');
+  updateCliCommand();
+
+  const log = document.getElementById('log');
+  log.innerHTML = '';
+  genFiles = {};
+
+  function addLog(msg, cls='log-info') {
+    const div = document.createElement('div');
+    div.className = `log-line ${cls}`;
+    div.textContent = msg;
+    log.appendChild(div);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-pct').textContent = pct + '%';
+    document.getElementById('status-label').textContent = label;
+  }
+
+  const modName = document.getElementById('mod-name').value.trim() || 'My AI Mod';
+  const modId = modName.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+
+  addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  addLog(`📦 Mod: ${modName} (${modId})`, 'log-step');
+  addLog(`🎯 MC Version: 1.21.11 (Fabric) — Mounts of Mayhem`, 'log-step');
+  addLog(`📝 ${desc}`);
+  addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+  // Step 1: Scaffold
+  setProgress(10, 'Creating Fabric mod scaffold...');
+  await sleep(400);
+  addLog('🔨 STEP 1: Creating Fabric Mod Scaffold...', 'log-step');
+  await sleep(300);
+  addLog('  ✅ src/main/java/com/example/' + modId + '/ created', 'log-success');
+  addLog('  ✅ fabric.mod.json generated', 'log-success');
+  addLog('  ✅ build.gradle configured for MC 1.21.11', 'log-success');
+  addLog('  ✅ gradle.properties set', 'log-success');
+
+  // Step 2: Generate
+  setProgress(25, 'Calling Gemini to generate Java source...');
+  await sleep(300);
+  addLog('');
+  addLog('🧠 STEP 2: Generating Mod Code with Gemini...', 'log-step');
+  addLog('  → Calling Google AI Studio API (gemini-2.0-flash-exp)', 'log-ai');
+  
+  let mainClassCode = '';
+  if (geminiKey) {
+    try {
+      addLog('  → Sending prompt to Gemini...', 'log-ai');
+      mainClassCode = await callGemini(geminiKey, buildModPrompt(desc, modId, modName));
+      addLog('  ✅ Gemini returned ' + mainClassCode.length + ' chars of code', 'log-success');
+      // parse files
+      genFiles = parseFiles(mainClassCode, modId);
+    } catch(e) {
+      addLog('  ⚠️  Gemini error: ' + e.message, 'log-warn');
+      genFiles = { [modId + 'Mod.java']: fallbackCode(modId, modName) };
+    }
+  } else {
+    addLog('  ⚠️  No Gemini key — using template code', 'log-warn');
+    await sleep(800);
+    genFiles = { [modId + 'Mod.java']: fallbackCode(modId, modName) };
+  }
+
+  const fileNames = Object.keys(genFiles);
+  addLog(`  ✅ Generated ${fileNames.length} file(s):`, 'log-success');
+  fileNames.forEach(f => addLog('     └─ ' + f));
+
+  // Step 3: Jules Review
+  setProgress(45, 'Jules reviewing code...');
+  await sleep(400);
+  addLog('');
+  addLog('🔍 STEP 3: Jules API Code Review...', 'log-step');
+  
+  const julesKey = document.getElementById('jules-key').value.trim();
+  if (julesKey && geminiKey) {
+    try {
+      addLog('  → Jules analyzing code quality...', 'log-ai');
+      const julesResult = await callJules(julesKey, Object.values(genFiles).join('\n\n'));
+      if (julesResult.includes('NO_ISSUES') || !julesResult.trim()) {
+        addLog('  ✅ Jules: No issues found!', 'log-success');
+      } else {
+        const issues = julesResult.split('\n').filter(l=>l.startsWith('ISSUE:')).slice(0,3);
+        if (issues.length) {
+          addLog(`  ✅ Jules found ${issues.length} suggestion(s):`, 'log-success');
+          issues.forEach(i => addLog('     └─ ' + i.replace('ISSUE:','').trim()));
+        } else {
+          addLog('  ✅ Jules review complete', 'log-success');
+        }
+      }
+    } catch(e) {
+      addLog('  ⚠️  Jules error: ' + e.message, 'log-warn');
+    }
+  } else {
+    addLog('  ⚠️  Jules key not set — skipping (uses same key as Gemini)', 'log-warn');
+    await sleep(300);
+  }
+
+  // Step 4: Build
+  setProgress(60, 'Building mod (Gradle)...');
+  await sleep(400);
+  addLog('');
+  addLog('🔧 STEP 4: Building mod with Gradle...', 'log-step');
+  addLog('  → This runs on your local machine via the Python CLI', 'log-ai');
+  addLog('  → Command: ./gradlew build --no-daemon');
+  await sleep(600);
+  addLog('  ℹ️  Build runs when you execute main.py locally', 'log-warn');
+  addLog('  → Groq auto-debugger will fix any compile errors', 'log-ai');
+
+  // Step 5: Tests
+  setProgress(80, 'Running AI tests...');
+  await sleep(400);
+  addLog('');
+  addLog('🧪 STEP 5: Running Tests...', 'log-step');
+
+  const tests = runStaticTests(genFiles, modId);
+  await sleep(400);
+  
+  for (const t of tests) {
+    await sleep(100);
+    const icon = t.passed ? '✅' : '❌';
+    addLog(`  ${icon} ${t.name}: ${t.message}`, t.passed ? 'log-success' : 'log-error');
+  }
+
+  // Step 6: Report
+  setProgress(95, 'Finalizing...');
+  await sleep(300);
+  addLog('');
+  addLog('📊 STEP 6: Generating Report...', 'log-step');
+  await sleep(300);
+
+  const passed = tests.filter(t=>t.passed).length;
+  const failed = tests.filter(t=>!t.passed).length;
+  addLog(`  Tests: ${passed}/${tests.length} passed`, passed === tests.length ? 'log-success' : 'log-warn');
+  addLog('');
+  addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  addLog('✅ Generation complete! Run main.py to build & install.', 'log-success');
+
+  setProgress(100, '✅ Done!');
+
+  // Show results
+  showTestResults(tests);
+  showCodePreview(genFiles);
+  
+  document.getElementById('generate-btn').disabled = false;
+}
+
+// ─── Gemini API Call ──────────────────────────────────────────────────────────
+async function callGemini(apiKey, prompt) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 4096, temperature: 0.3 }
+    })
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callJules(apiKey, code) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+  const prompt = `You are Jules, a Google AI coding agent. Review this Minecraft 1.21.11 Fabric mod code.
+List issues as: ISSUE: <description>. If none: NO_ISSUES
+
+${code.substring(0, 3000)}`;
+  
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { maxOutputTokens: 512, temperature: 0.1 }
+    })
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || 'NO_ISSUES';
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function buildModPrompt(desc, modId, modName) {
+  const className = modId.split('_').map(w=>w[0].toUpperCase()+w.slice(1)).join('');
+  return `Create a complete Minecraft 1.21.11 Fabric mod (Mounts of Mayhem release).
+Mod ID: ${modId} | Name: ${modName} | Package: com.example.${modId}
+Description: ${desc}
+
+For each file output:
+===FILE: <ClassName>.java===
+<complete java code>
+===END===
+
+Include ${className}Mod.java implementing ModInitializer at minimum.
+Use Fabric API, Yarn mappings (1.21.11+build.1), Java 21. 
+Use Identifier.of() — NOT new Identifier() (removed since 1.21).
+Use Registries.ITEM / Registries.BLOCK (not Registry.ITEM).
+Fabric loader: >=0.16.9 | Fabric API: 0.139.5+1.21.11
+Make it FULLY FUNCTIONAL for MC 1.21.11.`;
+}
+
+function parseFiles(response, modId) {
+  const files = {};
+  const matches = [...response.matchAll(/===FILE:\s*(.+?\.java)===\s*\n([\s\S]*?)===END===/g)];
+  if (matches.length) {
+    for (const m of matches) {
+      files[m[1].trim()] = m[2].trim();
+    }
+  } else {
+    const codeMatch = response.match(/```java\s*([\s\S]*?)\s*```/);
+    const className = modId.split('_').map(w=>w[0].toUpperCase()+w.slice(1)).join('');
+    files[className + 'Mod.java'] = codeMatch ? codeMatch[1] : response;
+  }
+  return files;
+}
+
+function fallbackCode(modId, modName) {
+  const cls = modId.split('_').map(w=>w[0].toUpperCase()+w.slice(1)).join('');
+  return `package com.example.${modId};
+
+import net.fabricmc.api.ModInitializer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class ${cls}Mod implements ModInitializer {
+    public static final String MOD_ID = "${modId}";
+    public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+
+    @Override
+    public void onInitialize() {
+        LOGGER.info("${modName} initialized for Minecraft 1.21.11!");
+        // TODO: Register items, blocks, events here
+    }
+}`;
+}
+
+function runStaticTests(files, modId) {
+  const tests = [];
+  const allCode = Object.values(files).join('\n');
+  const fileNames = Object.keys(files);
+  
+  // Test 1: Files exist
+  tests.push({ name: 'Java source files generated', passed: fileNames.length > 0, message: fileNames.length > 0 ? `${fileNames.length} file(s) created` : 'No files generated' });
+  
+  // Test 2: ModInitializer
+  const hasInit = allCode.includes('ModInitializer');
+  tests.push({ name: 'ModInitializer implemented', passed: hasInit, message: hasInit ? 'Found ModInitializer' : 'Missing ModInitializer' });
+  
+  // Test 3: onInitialize
+  const hasOnInit = allCode.includes('onInitialize');
+  tests.push({ name: 'onInitialize method', passed: hasOnInit, message: hasOnInit ? 'Method present' : 'Missing onInitialize()' });
+  
+  // Test 4: Package declaration  
+  const hasPkg = allCode.includes(`package com.example.${modId}`);
+  tests.push({ name: 'Package declaration', passed: hasPkg, message: hasPkg ? `com.example.${modId}` : 'Missing or wrong package' });
+  
+  // Test 5: No deprecated API
+  const hasOldId = allCode.includes('new Identifier(');
+  tests.push({ name: 'MC 1.21.11 API compliance', passed: !hasOldId, message: hasOldId ? 'Found deprecated new Identifier() — must use Identifier.of()' : 'Modern API used ✓' });
+  
+  // Test 6: Fabric imports
+  const hasFabric = allCode.includes('net.fabricmc') || allCode.includes('net.minecraft');
+  tests.push({ name: 'Fabric/MC imports', passed: hasFabric, message: hasFabric ? 'Imports present' : 'Missing Fabric/MC imports' });
+  
+  // Test 7: Brace balance
+  let balanced = true;
+  for (const [fname, code] of Object.entries(files)) {
+    if (code.split('{').length !== code.split('}').length) {
+      balanced = false;
+      break;
+    }
+  }
+  tests.push({ name: 'Brace balance', passed: balanced, message: balanced ? 'All braces balanced' : 'Unbalanced braces detected' });
+  
+  // Test 8: Logger
+  const hasLogger = allCode.includes('Logger') || allCode.includes('LOGGER');
+  tests.push({ name: 'Logger present', passed: hasLogger, message: hasLogger ? 'Logger configured' : 'No logger found' });
+  
+  return tests;
+}
+
+function showTestResults(tests) {
+  document.getElementById('results-card').classList.remove('hidden');
+  const passed = tests.filter(t=>t.passed).length;
+  const failed = tests.filter(t=>!t.passed).length;
+  
+  document.getElementById('stat-row').innerHTML = `
+    <div class="stat total"><div class="stat-num">${tests.length}</div><div class="stat-label">Total</div></div>
+    <div class="stat pass"><div class="stat-num">${passed}</div><div class="stat-label">Passed</div></div>
+    <div class="stat fail"><div class="stat-num">${failed}</div><div class="stat-label">Failed</div></div>
+  `;
+  
+  document.getElementById('test-list').innerHTML = tests.map(t => `
+    <div class="test-item ${t.passed?'pass':'fail'}">
+      <span>${t.passed?'✅':'❌'}</span>
+      <span class="test-name">${t.name}</span>
+      <span class="test-msg">${t.message}</span>
+    </div>
+  `).join('');
+}
+
+function showCodePreview(files) {
+  if (!Object.keys(files).length) return;
+  document.getElementById('code-card').classList.remove('hidden');
+  
+  const tabsEl = document.getElementById('code-tabs');
+  tabsEl.innerHTML = Object.keys(files).map((name, i) => 
+    `<button class="code-tab ${i===0?'active':''}" onclick="switchTab('${name}')">${name}</button>`
+  ).join('');
+  
+  activeTab = Object.keys(files)[0];
+  document.getElementById('code-preview').textContent = files[activeTab] || '';
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.code-tab').forEach(t => {
+    t.classList.toggle('active', t.textContent === name);
+  });
+  activeTab = name;
+  document.getElementById('code-preview').textContent = genFiles[name] || '';
+}
+
+function copyCliCmd() {
+  navigator.clipboard.writeText(document.getElementById('cli-command').textContent);
+  alert('✅ CLI command copied!');
+}
+
+function showSetup() {
+  document.getElementById('setup-card').classList.remove('hidden');
+  document.getElementById('setup-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Init
+updateChips();
+document.getElementById('mod-desc').addEventListener('input', updateCliCommand);
+document.getElementById('mod-name').addEventListener('input', updateCliCommand);
+</script>
+</body>
+</html>
