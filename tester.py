@@ -5,7 +5,6 @@ and runs AI-powered functional checks for Minecraft 1.21.11.
 
 import json
 import re
-import ast
 import urllib.request
 import urllib.error
 from pathlib import Path
