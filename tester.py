@@ -22,13 +22,23 @@ class ModTester:
         """
         tests = []
 
+        # Pre-load Java files to avoid redundant I/O
+        src_dir = mod_dir / "src/main/java"
+        java_files = {}
+        if src_dir.exists():
+            for jf in src_dir.rglob("*.java"):
+                try:
+                    java_files[jf] = jf.read_text()
+                except Exception:
+                    pass
+
         # ── Static tests (no build required) ──────────────────────────────
         tests.append(self._test_fabric_mod_json(mod_dir, mod_id, mod_name))
         tests.append(self._test_build_gradle(mod_dir))
-        tests.append(self._test_source_files_exist(mod_dir, mod_id))
-        tests.append(self._test_java_syntax(mod_dir, mod_id))
-        tests.append(self._test_fabric_api_usage(mod_dir))
-        tests.append(self._test_minecraft_version_compliance(mod_dir))
+        tests.append(self._test_source_files_exist(java_files))
+        tests.append(self._test_java_syntax(java_files))
+        tests.append(self._test_fabric_api_usage(java_files))
+        tests.append(self._test_minecraft_version_compliance(java_files))
 
         # ── Build tests ────────────────────────────────────────────────────
         tests.append(self._test_build_result(build_result))
@@ -37,7 +47,7 @@ class ModTester:
             tests.append(self._test_jar_contents(build_result["jar"], mod_id))
         
         # ── AI-powered tests (Groq or Gemini) ─────────────────────────────
-        ai_test = self._test_with_ai(mod_dir, mod_id)
+        ai_test = self._test_with_ai(java_files)
         if ai_test:
             tests.append(ai_test)
 
@@ -102,28 +112,21 @@ class ModTester:
         except Exception as e:
             return self._fail("build.gradle valid", str(e))
 
-    def _test_source_files_exist(self, mod_dir: Path, mod_id: str) -> dict:
+    def _test_source_files_exist(self, java_files: dict) -> dict:
         """Checks that Java source files were generated."""
-        src_dir = mod_dir / "src/main/java"
-        java_files = list(src_dir.rglob("*.java")) if src_dir.exists() else []
-        
         if not java_files:
             return self._fail("Java source files exist", "No .java files found in src/main/java")
         
         return self._pass(f"Java source files exist ({len(java_files)} file(s))")
 
-    def _test_java_syntax(self, mod_dir: Path, mod_id: str) -> dict:
+    def _test_java_syntax(self, java_files: dict) -> dict:
         """Basic Java syntax checks (brace matching, class declaration)."""
-        src_dir = mod_dir / "src/main/java"
-        if not src_dir.exists():
-            return self._fail("Java syntax check", "Source directory missing")
+        if not java_files:
+            return self._fail("Java syntax check", "No source files found")
 
-        java_files = list(src_dir.rglob("*.java"))
         errors = []
         
-        for jf in java_files:
-            content = jf.read_text()
-            
+        for jf, content in java_files.items():
             # Brace balance
             opens = content.count("{")
             closes = content.count("}")
@@ -143,18 +146,15 @@ class ModTester:
         
         return self._pass(f"Java syntax OK ({len(java_files)} file(s))")
 
-    def _test_fabric_api_usage(self, mod_dir: Path) -> dict:
+    def _test_fabric_api_usage(self, java_files: dict) -> dict:
         """Checks that Fabric API is imported and ModInitializer is implemented."""
-        src_dir = mod_dir / "src/main/java"
-        if not src_dir.exists():
-            return self._fail("Fabric API usage", "Source directory missing")
+        if not java_files:
+            return self._fail("Fabric API usage", "No source files found")
 
-        java_files = list(src_dir.rglob("*.java"))
         has_mod_initializer = False
         has_fabric_import = False
 
-        for jf in java_files:
-            content = jf.read_text()
+        for content in java_files.values():
             if "ModInitializer" in content:
                 has_mod_initializer = True
             if "net.fabricmc" in content or "net.minecraft" in content:
@@ -168,13 +168,11 @@ class ModTester:
 
         return self._pass("Fabric API correctly used")
 
-    def _test_minecraft_version_compliance(self, mod_dir: Path) -> dict:
+    def _test_minecraft_version_compliance(self, java_files: dict) -> dict:
         """Checks for deprecated patterns that break in 1.21.11."""
-        src_dir = mod_dir / "src/main/java"
-        if not src_dir.exists():
+        if not java_files:
             return self._pass("MC 1.21.11 compliance (no source found)")
 
-        java_files = list(src_dir.rglob("*.java"))
         deprecated = []
 
         deprecated_patterns = [
@@ -183,8 +181,7 @@ class ModTester:
             ("FabricItemSettings()", "Use new Item.Settings() in 1.20+"),
         ]
 
-        for jf in java_files:
-            content = jf.read_text()
+        for jf, content in java_files.items():
             for pattern, warning in deprecated_patterns:
                 if pattern in content:
                     deprecated.append(f"{jf.name}: {warning}")
@@ -227,21 +224,18 @@ class ModTester:
         except Exception as e:
             return self._fail("JAR contents", str(e))
 
-    def _test_with_ai(self, mod_dir: Path, mod_id: str) -> dict | None:
+    def _test_with_ai(self, java_files: dict) -> dict | None:
         """Use Groq to do a quick AI review of the generated code."""
         if not self.config.has_groq:
             return None
 
-        src_dir = mod_dir / "src/main/java"
-        java_files = list(src_dir.rglob("*.java")) if src_dir.exists() else []
-        
         if not java_files:
             return None
 
-        # Read main file
+        # Get first file content
         try:
-            main_code = java_files[0].read_text()[:2000]
-        except:
+            main_code = next(iter(java_files.values()))[:2000]
+        except Exception:
             return None
 
         payload = {
