@@ -8,7 +8,6 @@ import os
 import re
 import json
 import subprocess
-import shutil
 import time
 from pathlib import Path
 from mod_generator import ModGenerator
