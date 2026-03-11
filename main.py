@@ -7,7 +7,6 @@ Target: Minecraft 1.21.111 (Fabric)
 import os
 import json
 import subprocess
-import shutil
 import time
 from pathlib import Path
 from mod_generator import ModGenerator
