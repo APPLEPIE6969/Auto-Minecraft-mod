@@ -5,6 +5,7 @@ Target: Minecraft 1.21.111 (Fabric)
 """
 
 import os
+import re
 import json
 import subprocess
 import shutil
@@ -39,7 +40,7 @@ class ModOrchestrator:
             # Use Gemini to suggest a mod name
             mod_name = self.generator.suggest_mod_name(mod_description)
         
-        mod_id = mod_name.lower().replace(" ", "_").replace("-", "_")
+        mod_id = self._sanitize_mod_id(mod_name)
         mod_dir = self.output_dir / mod_id
         
         print(f"\n📦 Creating mod: {mod_name} ({mod_id})")
@@ -337,6 +338,20 @@ archives_base_name={mod_id}
 
     def _to_class_name(self, mod_id: str) -> str:
         return "".join(word.capitalize() for word in mod_id.split("_"))
+
+    def _sanitize_mod_id(self, mod_name: str) -> str:
+        """
+        Sanitize mod_id to prevent path traversal and other injection attacks.
+        Only allows lowercase alphanumeric characters and underscores.
+        """
+        mod_id = mod_name.lower().replace(" ", "_").replace("-", "_")
+        mod_id = re.sub(r'[^a-z0-9_]', '', mod_id)
+        mod_id = re.sub(r'_+', '_', mod_id).strip('_')
+
+        if not mod_id:
+            mod_id = "generated_mod"
+
+        return mod_id
 
 
 if __name__ == "__main__":
