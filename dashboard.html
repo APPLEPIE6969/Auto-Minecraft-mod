@@ -370,6 +370,26 @@ python main.py "A new ore that drops experience" --output ./my_mods
 </div>
 
 <script>
+// ─── Security ─────────────────────────────────────────────────────────────────
+function escapeHTML(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, function(m) {
+    return {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[m];
+  });
+}
+
+function escapeJSAttribute(str) {
+  if (!str) return '';
+  // Basic escaping for strings inside onclick='switchTab("...")'
+  return str.replace(/[\\']/g, '\\$&');
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 let genFiles = {};  // filename → content
 let activeTab = null;
@@ -434,7 +454,7 @@ async function generateMod() {
   updateCliCommand();
 
   const log = document.getElementById('log');
-  log.innerHTML = '';
+  log.textContent = '';
   genFiles = {};
 
   function addLog(msg, cls='log-info') {
@@ -728,8 +748,8 @@ function showTestResults(tests) {
   document.getElementById('test-list').innerHTML = tests.map(t => `
     <div class="test-item ${t.passed?'pass':'fail'}">
       <span>${t.passed?'✅':'❌'}</span>
-      <span class="test-name">${t.name}</span>
-      <span class="test-msg">${t.message}</span>
+      <span class="test-name">${escapeHTML(t.name)}</span>
+      <span class="test-msg">${escapeHTML(t.message)}</span>
     </div>
   `).join('');
 }
@@ -740,7 +760,7 @@ function showCodePreview(files) {
   
   const tabsEl = document.getElementById('code-tabs');
   tabsEl.innerHTML = Object.keys(files).map((name, i) => 
-    `<button class="code-tab ${i===0?'active':''}" onclick="switchTab('${name}')">${name}</button>`
+    `<button class="code-tab ${i===0?'active':''}" onclick="switchTab('${escapeHTML(escapeJSAttribute(name))}')">${escapeHTML(name)}</button>`
   ).join('');
   
   activeTab = Object.keys(files)[0];
