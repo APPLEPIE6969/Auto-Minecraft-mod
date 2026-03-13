@@ -91,8 +91,8 @@ Make the mod FULLY FUNCTIONAL for {MC_VERSION}. Use Fabric API and Yarn mappings
             try:
                 with open(sf) as f:
                     code_context += f"\n\n// === {sf} ===\n" + f.read()
-            except:
-                pass
+            except Exception as e:
+                print(f"  ⚠️  Could not read source file {sf}: {e}")
 
         prompt = f"""You are Jules, a Google AI coding agent. Review this Minecraft {MC_VERSION} Fabric mod code for:
 1. Correctness (proper API usage, right method signatures for 1.21.11)
