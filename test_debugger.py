@@ -53,3 +53,27 @@ def test_parse_errors_limit_30(debugger):
 def test_parse_errors_all_patterns(debugger, pattern):
     output = f"Some prefix {pattern} some suffix"
     assert debugger._parse_errors(output) == [f"Some prefix {pattern} some suffix"]
+
+def test_parse_errors_mixed_line_endings(debugger):
+    output = "error: line 1\r\nERROR: line 2\n: error line 3"
+    errors = debugger._parse_errors(output)
+    assert errors == ["error: line 1", "ERROR: line 2", ": error line 3"]
+
+def test_parse_errors_multiple_patterns_single_line(debugger):
+    output = "error: cannot find symbol in this line"
+    errors = debugger._parse_errors(output)
+    assert errors == ["error: cannot find symbol in this line"]
+    assert len(errors) == 1
+
+def test_parse_errors_consecutive_newlines(debugger):
+    output = "\n\nerror: something went wrong\n\n\nBUILD FAILED\n\n"
+    errors = debugger._parse_errors(output)
+    assert errors == ["error: something went wrong", "BUILD FAILED"]
+
+def test_parse_errors_boundaries(debugger):
+    output = "error: start\nmiddle\nBUILD FAILED"
+    errors = debugger._parse_errors(output)
+    assert errors == ["error: start", "BUILD FAILED"]
+
+def test_parse_errors_only_whitespace(debugger):
+    assert debugger._parse_errors("  \n  \n  ") == []
