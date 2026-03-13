@@ -281,8 +281,8 @@ archives_base_name={mod_id}
                 try:
                     with open(sf) as f:
                         source_code[sf] = f.read()
-                except:
-                    pass
+                except Exception as e:
+                    print(f"  ⚠️  Could not read source file {sf} for debugging: {e}")
             
             fixed_files = self.debugger.fix_errors(
                 errors=errors,
