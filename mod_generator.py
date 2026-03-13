@@ -28,6 +28,10 @@ Rules:
 
 MC_VERSION = "1.21.11"
 
+# Pre-compiled regex patterns for performance
+FILE_BLOCK_PATTERN = re.compile(r"===FILE:\s*(.+?\.java)===\s*\n(.*?)===END===", re.DOTALL)
+JAVA_CODE_BLOCK_PATTERN = re.compile(r"```java\s*(.*?)\s*```", re.DOTALL)
+
 
 class ModGenerator:
     def __init__(self, config: Config):
@@ -192,14 +196,13 @@ If no issues found, reply: NO_ISSUES"""
     def _parse_and_write_files(self, response: str, src_dir: Path, mod_id: str, mod_dir: Path) -> list:
         """Parse ===FILE: ... ===END=== blocks and write them."""
         created = []
-        pattern = r"===FILE:\s*(.+?\.java)===\s*\n(.*?)===END==="
-        matches = re.findall(pattern, response, re.DOTALL)
+        matches = FILE_BLOCK_PATTERN.findall(response)
 
         if not matches:
             # Fallback: treat whole response as main class
             main_class = self._to_class_name(mod_id) + "Mod.java"
             # Extract code block if present
-            code_match = re.search(r"```java\s*(.*?)\s*```", response, re.DOTALL)
+            code_match = JAVA_CODE_BLOCK_PATTERN.search(response)
             code = code_match.group(1) if code_match else response
             path = src_dir / main_class
             with open(path, "w") as f:
@@ -236,7 +239,7 @@ Original file ({main_file}):
 Return ONLY the corrected Java code, no explanations."""
             
             fixed_code = self._call_gemini(fix_prompt, max_tokens=2048)
-            code_match = re.search(r"```java\s*(.*?)\s*```", fixed_code, re.DOTALL)
+            code_match = JAVA_CODE_BLOCK_PATTERN.search(fixed_code)
             if code_match:
                 fixed_code = code_match.group(1)
             
